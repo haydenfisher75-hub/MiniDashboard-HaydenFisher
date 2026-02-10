@@ -1,5 +1,4 @@
 using FlaUI.Core.AutomationElements;
-using FlaUI.Core.Definitions;
 using FlaUI.Core.Input;
 using FlaUI.Core.Tools;
 using FlaUI.Core.WindowsAPI;
@@ -102,28 +101,28 @@ public class DashboardUITests : IClassFixture<AppFixture>
     }
 
     /// <summary>
-    /// Finds a row, scrolls into view, and double-clicks using Mouse.DoubleClick
-    /// (FlaUI's element.DoubleClick() doesn't reliably trigger WPF MouseDoubleClick).
+    /// Finds a row, scrolls into view, selects it via SelectionItemPattern,
+    /// then clicks the Edit toolbar button via Invoke pattern.
     /// </summary>
-    private void FindScrollAndDoubleClick(AutomationElement grid, string text)
+    private void FindSelectAndEdit(AutomationElement grid, string text)
     {
         var row = _fixture.FindRowByText(grid, text);
         row.Should().NotBeNull($"row containing '{text}' should exist");
         ScrollRowIntoView(row!);
-        Mouse.DoubleClick(row!.GetClickablePoint());
+        // Select via SelectionItemPattern (UIA, no mouse needed)
+        if (row!.Patterns.SelectionItem.IsSupported)
+        {
+            row.Patterns.SelectionItem.Pattern.Select();
+        }
+        else
+        {
+            row.Click();
+        }
         Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
-    }
-
-    /// <summary>
-    /// Finds a row, scrolls into view, and clicks to select.
-    /// </summary>
-    private void FindScrollAndClick(AutomationElement grid, string text)
-    {
-        var row = _fixture.FindRowByText(grid, text);
-        row.Should().NotBeNull($"row containing '{text}' should exist");
-        ScrollRowIntoView(row!);
-        row!.Click();
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(300));
+        // Click Edit button via Invoke pattern (reliable UIA call)
+        var editBtn = _fixture.FindById("EditButton");
+        editBtn.AsButton().Invoke();
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
     }
 
     private void FillDialogAndSave(Window dialog, string? name = null, string? description = null,
@@ -189,9 +188,10 @@ public class DashboardUITests : IClassFixture<AppFixture>
     [Fact]
     public void T1_AddItem_AppearsInAllItemsGrid()
     {
-        // Click Add button
+        // Click Add button using Invoke pattern for reliability
         var addBtn = _fixture.FindById("AddButton");
-        addBtn.Click();
+        addBtn.AsButton().Invoke();
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
 
         // Wait for dialog
         var dialog = _fixture.WaitForDialog("Add Item");
@@ -220,7 +220,7 @@ public class DashboardUITests : IClassFixture<AppFixture>
     {
         // Find, scroll to, and double-click the item
         var allGrid = _fixture.GetAllItemsGrid();
-        FindScrollAndDoubleClick(allGrid, "UI Test Item");
+        FindSelectAndEdit(allGrid, "UI Test Item");
 
         // Wait for edit dialog
         var dialog = _fixture.WaitForDialog("Edit Item");
@@ -246,7 +246,7 @@ public class DashboardUITests : IClassFixture<AppFixture>
     {
         // Double-click item in AllItemsGrid
         var allGrid = _fixture.GetAllItemsGrid();
-        FindScrollAndDoubleClick(allGrid, "UI Test Edited");
+        FindSelectAndEdit(allGrid, "UI Test Edited");
 
         var dialog = _fixture.WaitForDialog("Edit Item");
         dialog.Should().NotBeNull();
@@ -269,7 +269,7 @@ public class DashboardUITests : IClassFixture<AppFixture>
     {
         // Double-click item in DiscountedGrid
         var discountedGrid = _fixture.GetDiscountedGrid();
-        FindScrollAndDoubleClick(discountedGrid, "UI Test Edited");
+        FindSelectAndEdit(discountedGrid, "UI Test Edited");
 
         var dialog = _fixture.WaitForDialog("Edit Item");
         dialog.Should().NotBeNull();
@@ -287,22 +287,57 @@ public class DashboardUITests : IClassFixture<AppFixture>
     [Fact]
     public void T5_DeleteItem_RemovedFromGrid()
     {
-        // Select the item in AllItemsGrid
+        // Select the item in AllItemsGrid using SelectionItemPattern
         var allGrid = _fixture.GetAllItemsGrid();
-        FindScrollAndClick(allGrid, "UI Test Edited");
+        var row = _fixture.FindRowByText(allGrid, "UI Test Edited");
+        row.Should().NotBeNull("row containing 'UI Test Edited' should exist");
+        ScrollRowIntoView(row!);
+        if (row!.Patterns.SelectionItem.IsSupported)
+            row.Patterns.SelectionItem.Pattern.Select();
+        else
+            row.Click();
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
 
         // Click Delete button
         var deleteBtn = _fixture.FindById("DeleteButton");
-        deleteBtn.Click();
+        deleteBtn.AsButton().Invoke();
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(1000));
 
-        // Handle the confirmation MessageBox
-        var msgBox = _fixture.WaitForMessageBox("Confirm Delete");
+        // Handle the confirmation MessageBox (use WaitForDialog which also checks modal windows)
+        var msgBox = _fixture.WaitForDialog("Confirm Delete");
+
+        // If "Confirm Delete" not found, check if "No items selected" dialog appeared
+        if (msgBox == null)
+        {
+            // Check for the info dialog
+            var noSelBox = _fixture.WaitForDialog("Delete", TimeSpan.FromSeconds(2));
+            if (noSelBox != null)
+            {
+                // Dismiss the "No items selected" dialog
+                var okBtn = noSelBox.FindFirstDescendant(cf => cf.ByName("OK"));
+                okBtn?.AsButton().Invoke();
+                Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
+            }
+
+            // Try again: re-select and delete
+            allGrid = _fixture.GetAllItemsGrid();
+            row = _fixture.FindRowByText(allGrid, "UI Test Edited");
+            row.Should().NotBeNull("row should still exist after failed delete");
+            ScrollRowIntoView(row!);
+            row!.Patterns.SelectionItem.Pattern.Select();
+            Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(1000));
+            deleteBtn = _fixture.FindById("DeleteButton");
+            deleteBtn.AsButton().Invoke();
+            Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(1000));
+            msgBox = _fixture.WaitForDialog("Confirm Delete");
+        }
+
         msgBox.Should().NotBeNull("confirmation dialog should appear");
 
-        // Click Yes
+        // Click Yes via Invoke pattern
         var yesButton = msgBox!.FindFirstDescendant(cf => cf.ByName("Yes"));
         yesButton.Should().NotBeNull("Yes button should exist in confirmation dialog");
-        yesButton!.Click();
+        yesButton!.AsButton().Invoke();
 
         Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(2000));
 

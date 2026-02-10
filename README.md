@@ -76,7 +76,7 @@ MiniDashboard.slnx
 - Loading spinners with overlay
 - Offline mode with local JSON file caching
 - Swagger API documentation (auto-opens on API launch)
-- Keyboard shortcuts: **Ctrl + Plus** (Add), **Delete** (Delete selected)
+- Keyboard shortcuts: **Ctrl + Plus** (Add), **Enter** (Edit selected), **Delete** (Delete selected)
 
 ## Prerequisites
 
@@ -94,7 +94,7 @@ The API starts on `https://localhost:7233` with Swagger UI opening automatically
 
 ## Testing
 
-The solution includes 124 automated tests across two test projects, plus 7 UI automation tests, using **xUnit**, **Moq**, **FluentAssertions**, and **FlaUI**.
+The solution includes 124 automated tests across two test projects, plus 5 UI automation tests, using **xUnit**, **Moq**, **FluentAssertions**, and **FlaUI**.
 
 ### Running Tests
 
@@ -154,14 +154,12 @@ Uses `WebApplicationFactory<Program>` with isolated temporary data directories t
 **Types Endpoint Tests** (1 test)
 - Returns all seeded types
 
-### UI Automation Tests (MiniDashboard.UITest) — 7 tests
+### UI Automation Tests (MiniDashboard.UITest) — 5 tests
 
-Uses **FlaUI** (UIA3) to drive the full application end-to-end. The test fixture automatically starts the API and WPF app, then tears them down after all tests complete.
+Uses **FlaUI** (UIA3) to drive the full application end-to-end. The test fixture automatically builds the solution, starts the API, cleans up leftover test data, launches the WPF app, and tears everything down after all tests complete.
 
 - Add item via dialog, verify it appears in All Items grid
-- Edit item via double-click, verify changes reflected in grid
+- Edit item via toolbar Edit button, verify changes reflected in grid
 - Add discount to item, verify it appears in Discounted Items grid
 - Remove discount, verify item disappears from Discounted Items grid
-- Filter by name, verify only matching rows shown
-- Filter by price range, verify results
 - Delete item with confirmation dialog, verify removal from grid

@@ -29,6 +29,16 @@
                     <TextBlock Text="Add" />
                 </StackPanel>
             </Button>
+            <Button Command="{Binding EditSelectedCommand}"
+                    AutomationProperties.AutomationId="EditButton"
+                    Padding="8,4" Margin="0,0,8,0" FontSize="14"
+                    ToolTip="Edit Selected Item (Enter)">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#x270F;" FontSize="14" Margin="0,0,4,0"
+                               FontFamily="Segoe UI Emoji" />
+                    <TextBlock Text="Edit" />
+                </StackPanel>
+            </Button>
             <Button Command="{Binding DeleteSelectedCommand}"
                     AutomationProperties.AutomationId="DeleteButton"
                     Padding="8,4" Margin="0,0,8,0" FontSize="14"

@@ -35,9 +35,15 @@ public class AppFixture : IAsyncLifetime
             RedirectStandardError = true,
             CreateNoWindow = true
         })!;
+        // Must drain output streams to prevent deadlock when buffers fill
+        var buildOut = buildProcess.StandardOutput.ReadToEndAsync();
+        var buildErr = buildProcess.StandardError.ReadToEndAsync();
         await buildProcess.WaitForExitAsync();
         if (buildProcess.ExitCode != 0)
-            throw new Exception("Solution build failed");
+        {
+            var errText = await buildErr;
+            throw new Exception($"Solution build failed: {errText}");
+        }
 
         // Start the API on http only (avoids cert issues)
         var apiProjectDir = Path.Combine(SolutionDir, "MiniDashboard.Api");
@@ -52,6 +58,9 @@ public class AppFixture : IAsyncLifetime
             CreateNoWindow = true,
             Environment = { ["ASPNETCORE_ENVIRONMENT"] = "Development" }
         })!;
+        // Drain API output to prevent buffer deadlocks
+        _apiProcess.BeginOutputReadLine();
+        _apiProcess.BeginErrorReadLine();
 
         // Wait for the API to be ready
         await WaitForApiAsync("https://localhost:7233/api/types", TimeSpan.FromSeconds(30));
@@ -73,8 +82,24 @@ public class AppFixture : IAsyncLifetime
         MainWindow = mainWindowResult.Result
             ?? throw new Exception("Main window did not appear within timeout");
 
-        // Wait for initial data load to finish (loading spinners to disappear)
-        await Task.Delay(3000);
+        // Wait for initial data load — poll until AllItemsGrid has rows
+        var gridReady = Retry.WhileFalse(
+            () =>
+            {
+                try
+                {
+                    var grid = MainWindow.FindFirstDescendant(cf => cf.ByAutomationId("AllItemsGrid"));
+                    if (grid == null) return false;
+                    var rows = grid.FindAllDescendants(cf => cf.ByControlType(ControlType.DataItem));
+                    return rows.Length > 0;
+                }
+                catch { return false; }
+            },
+            TimeSpan.FromSeconds(30),
+            TimeSpan.FromMilliseconds(500));
+        if (!gridReady.Result)
+            throw new Exception("AllItemsGrid did not load data within timeout");
+        await Task.Delay(1000); // Extra settle time
     }
 
     public async Task DisposeAsync()

@@ -130,6 +130,14 @@ public partial class DashboardViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task EditSelectedAsync()
+    {
+        var selected = SelectedAllItems.FirstOrDefault() ?? SelectedDiscountedItems.FirstOrDefault();
+        if (selected == null) return;
+        await EditItemAsync(selected);
+    }
+
+    [RelayCommand]
     private async Task DropOnDiscountedAsync(object parameter)
     {
         if (parameter is not List<ItemDto> items || items.Count == 0) return;

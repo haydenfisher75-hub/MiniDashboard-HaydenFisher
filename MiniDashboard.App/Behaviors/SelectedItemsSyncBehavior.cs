@@ -112,7 +112,13 @@ public class SelectedItemsSyncBehavior : Behavior<DataGrid>
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Delete && DeleteCommand is not null && DeleteCommand.CanExecute(null))
+        if (e.Key == Key.Enter && DoubleClickCommand is not null
+            && AssociatedObject.SelectedItem is { } item && DoubleClickCommand.CanExecute(item))
+        {
+            e.Handled = true;
+            DoubleClickCommand.Execute(item);
+        }
+        else if (e.Key == Key.Delete && DeleteCommand is not null && DeleteCommand.CanExecute(null))
         {
             e.Handled = true;
             DeleteCommand.Execute(null);
