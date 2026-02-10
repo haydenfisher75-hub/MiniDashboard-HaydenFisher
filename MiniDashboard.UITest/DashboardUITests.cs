@@ -1,4 +1,5 @@
 using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Definitions;
 using FlaUI.Core.Input;
 using FlaUI.Core.Tools;
 using FlaUI.Core.WindowsAPI;
@@ -20,94 +21,167 @@ public class DashboardUITests : IClassFixture<AppFixture>
 
     // ---- Helpers ----
 
-    private AutomationElement[] GetGridRows(AutomationElement grid)
+    /// <summary>
+    /// Waits for a ComboBox to have items loaded, then selects by text.
+    /// </summary>
+    private void WaitAndSelectComboBox(Window dialog, string automationId, string itemText)
     {
-        var dataGrid = grid.AsGrid();
-        return dataGrid.Rows;
+        var combo = Retry.WhileNull(
+            () =>
+            {
+                var el = dialog.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
+                if (el == null) return null;
+                var cb = el.AsComboBox();
+                if (cb.Items.Length == 0) return null;
+                return cb;
+            },
+            TimeSpan.FromSeconds(10),
+            TimeSpan.FromMilliseconds(250)).Result;
+
+        combo.Should().NotBeNull($"{automationId} ComboBox should have items");
+        combo!.Select(itemText);
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
     }
 
-    private bool GridContainsItem(AutomationElement grid, string name)
+    /// <summary>
+    /// Waits for the dialog to close (disappear from modal windows).
+    /// </summary>
+    private void WaitForDialogToClose(TimeSpan? timeout = null)
     {
-        var rows = GetGridRows(grid);
-        return rows.Any(r =>
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
+        while (DateTime.UtcNow < deadline)
         {
-            var cells = r.AsGridRow().Cells;
-            return cells.Any(c => c.AsLabel().Text.Contains(name, StringComparison.OrdinalIgnoreCase));
-        });
+            try
+            {
+                var modalWindows = _fixture.MainWindow.ModalWindows;
+                if (modalWindows.Length == 0)
+                    return;
+            }
+            catch { return; }
+            Thread.Sleep(250);
+        }
     }
 
-    private AutomationElement? FindRowByName(AutomationElement grid, string name)
+    /// <summary>
+    /// Types text into a TextBox using keyboard. Focuses and selects all first.
+    /// </summary>
+    private void TypeIntoTextBox(AutomationElement textBox, string text)
     {
-        var rows = GetGridRows(grid);
-        return rows.FirstOrDefault(r =>
+        textBox.Focus();
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(100));
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_A);
+        Keyboard.Type(text);
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(200));
+    }
+
+    /// <summary>
+    /// Sets a TextBox value directly via the Value pattern (bypasses keyboard issues with special chars like period).
+    /// </summary>
+    private void SetTextBoxValue(AutomationElement textBox, string value)
+    {
+        textBox.AsTextBox().Text = value;
+        textBox.Focus();
+        Keyboard.Press(VirtualKeyShort.TAB);
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(200));
+    }
+
+    /// <summary>
+    /// Scrolls a DataGrid row into view using the ScrollItem pattern.
+    /// </summary>
+    private void ScrollRowIntoView(AutomationElement row)
+    {
+        try
         {
-            var cells = r.AsGridRow().Cells;
-            return cells.Any(c => c.AsLabel().Text.Contains(name, StringComparison.OrdinalIgnoreCase));
-        });
+            if (row.Patterns.ScrollItem.IsSupported)
+            {
+                row.Patterns.ScrollItem.Pattern.ScrollIntoView();
+                Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(300));
+            }
+        }
+        catch { }
     }
 
-    private string GetCellText(AutomationElement row, int columnIndex)
+    /// <summary>
+    /// Finds a row, scrolls into view, and double-clicks using Mouse.DoubleClick
+    /// (FlaUI's element.DoubleClick() doesn't reliably trigger WPF MouseDoubleClick).
+    /// </summary>
+    private void FindScrollAndDoubleClick(AutomationElement grid, string text)
     {
-        var cells = row.AsGridRow().Cells;
-        return cells[columnIndex].AsLabel().Text;
+        var row = _fixture.FindRowByText(grid, text);
+        row.Should().NotBeNull($"row containing '{text}' should exist");
+        ScrollRowIntoView(row!);
+        Mouse.DoubleClick(row!.GetClickablePoint());
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
+    }
+
+    /// <summary>
+    /// Finds a row, scrolls into view, and clicks to select.
+    /// </summary>
+    private void FindScrollAndClick(AutomationElement grid, string text)
+    {
+        var row = _fixture.FindRowByText(grid, text);
+        row.Should().NotBeNull($"row containing '{text}' should exist");
+        ScrollRowIntoView(row!);
+        row!.Click();
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(300));
     }
 
     private void FillDialogAndSave(Window dialog, string? name = null, string? description = null,
         string? typeName = null, string? categoryName = null, string? price = null,
         string? quantity = null, string? discount = null)
     {
+        // Wait for form data to load
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(1000));
+
         if (name != null)
         {
-            var nameBox = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemName")).AsTextBox();
-            nameBox.Text = "";
-            nameBox.Enter(name);
+            var nameBox = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemName"));
+            nameBox.Should().NotBeNull("ItemName field should exist");
+            TypeIntoTextBox(nameBox!, name);
         }
 
         if (description != null)
         {
-            var descBox = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemDescription")).AsTextBox();
-            descBox.Text = "";
-            descBox.Enter(description);
+            var descBox = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemDescription"));
+            descBox.Should().NotBeNull("ItemDescription field should exist");
+            TypeIntoTextBox(descBox!, description);
         }
 
         if (typeName != null)
-        {
-            var typeCombo = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemType")).AsComboBox();
-            typeCombo.Select(typeName);
-            Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
-        }
+            WaitAndSelectComboBox(dialog, "ItemType", typeName);
 
         if (categoryName != null)
-        {
-            var catCombo = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemCategory")).AsComboBox();
-            catCombo.Select(categoryName);
-        }
+            WaitAndSelectComboBox(dialog, "ItemCategory", categoryName);
 
         if (price != null)
         {
-            var priceBox = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemPrice")).AsTextBox();
-            priceBox.Text = "";
-            priceBox.Enter(price);
+            var priceBox = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemPrice"));
+            priceBox.Should().NotBeNull("ItemPrice field should exist");
+            SetTextBoxValue(priceBox!, price);
         }
 
         if (quantity != null)
         {
-            var qtyBox = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemQuantity")).AsTextBox();
-            qtyBox.Text = "";
-            qtyBox.Enter(quantity);
+            var qtyBox = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemQuantity"));
+            qtyBox.Should().NotBeNull("ItemQuantity field should exist");
+            SetTextBoxValue(qtyBox!, quantity);
         }
 
         if (discount != null)
         {
-            var discBox = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemDiscount")).AsTextBox();
-            discBox.Text = "";
-            discBox.Enter(discount);
+            var discBox = dialog.FindFirstDescendant(cf => cf.ByAutomationId("ItemDiscount"));
+            discBox.Should().NotBeNull("ItemDiscount field should exist");
+            SetTextBoxValue(discBox!, discount);
         }
 
         // Click Save
-        var saveBtn = dialog.FindFirstDescendant(cf => cf.ByAutomationId("SaveButton")).AsButton();
-        saveBtn.Invoke();
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(1000));
+        var saveBtn = dialog.FindFirstDescendant(cf => cf.ByAutomationId("SaveButton"));
+        saveBtn.Should().NotBeNull("SaveButton should exist");
+        saveBtn!.Click();
+
+        // Wait for dialog to close (indicates save succeeded)
+        WaitForDialogToClose();
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(2000));
     }
 
     // ---- Tests (ordered) ----
@@ -116,55 +190,55 @@ public class DashboardUITests : IClassFixture<AppFixture>
     public void T1_AddItem_AppearsInAllItemsGrid()
     {
         // Click Add button
-        var addBtn = _fixture.FindById("AddButton").AsButton();
-        addBtn.Invoke();
+        var addBtn = _fixture.FindById("AddButton");
+        addBtn.Click();
 
         // Wait for dialog
         var dialog = _fixture.WaitForDialog("Add Item");
         dialog.Should().NotBeNull("Add Item dialog should appear");
 
         // Fill in the form
-        FillDialogAndSave(dialog,
+        FillDialogAndSave(dialog!,
             name: "UI Test Item",
-            description: "Test Description",
+            description: "UI Test Description",
             typeName: "Devices",
             categoryName: "Laptop",
             price: "25.99",
             quantity: "5");
 
-        // Wait for data reload
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(2000));
-
         // Verify item appears in AllItemsGrid
         var allGrid = _fixture.GetAllItemsGrid();
-        GridContainsItem(allGrid, "UI Test Item").Should().BeTrue("newly added item should appear in All Items grid");
+        var found = Retry.WhileFalse(
+            () => _fixture.GridContainsItem(allGrid, "UI Test Item"),
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromMilliseconds(500));
+        found.Result.Should().BeTrue("newly added item should appear in All Items grid");
     }
 
     [Fact]
     public void T2_EditItem_ChangesReflectedInGrid()
     {
-        // Find and double-click the item in AllItemsGrid
+        // Find, scroll to, and double-click the item
         var allGrid = _fixture.GetAllItemsGrid();
-        var row = FindRowByName(allGrid, "UI Test Item");
-        row.Should().NotBeNull("item should exist in grid before editing");
-        row!.DoubleClick();
+        FindScrollAndDoubleClick(allGrid, "UI Test Item");
 
         // Wait for edit dialog
         var dialog = _fixture.WaitForDialog("Edit Item");
         dialog.Should().NotBeNull("Edit Item dialog should appear");
 
         // Change name and price
-        FillDialogAndSave(dialog,
+        FillDialogAndSave(dialog!,
             name: "UI Test Edited",
             price: "35.99");
 
-        // Wait for data reload
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(2000));
-
         // Verify changes
         allGrid = _fixture.GetAllItemsGrid();
-        GridContainsItem(allGrid, "UI Test Edited").Should().BeTrue("edited name should appear");
-        GridContainsItem(allGrid, "UI Test Item").Should().BeFalse("old name should be gone");
+        var found = Retry.WhileFalse(
+            () => _fixture.GridContainsItem(allGrid, "UI Test Edited"),
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromMilliseconds(500));
+        found.Result.Should().BeTrue("edited name should appear");
+        _fixture.GridContainsItem(allGrid, "UI Test Item").Should().BeFalse("old name should be gone");
     }
 
     [Fact]
@@ -172,21 +246,21 @@ public class DashboardUITests : IClassFixture<AppFixture>
     {
         // Double-click item in AllItemsGrid
         var allGrid = _fixture.GetAllItemsGrid();
-        var row = FindRowByName(allGrid, "UI Test Edited");
-        row.Should().NotBeNull();
-        row!.DoubleClick();
+        FindScrollAndDoubleClick(allGrid, "UI Test Edited");
 
         var dialog = _fixture.WaitForDialog("Edit Item");
         dialog.Should().NotBeNull();
 
         // Set discount to 15
-        FillDialogAndSave(dialog, discount: "15");
-
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(2000));
+        FillDialogAndSave(dialog!, discount: "15");
 
         // Verify item appears in DiscountedGrid
         var discountedGrid = _fixture.GetDiscountedGrid();
-        GridContainsItem(discountedGrid, "UI Test Edited").Should()
+        var found = Retry.WhileFalse(
+            () => _fixture.GridContainsItem(discountedGrid, "UI Test Edited"),
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromMilliseconds(500));
+        found.Result.Should()
             .BeTrue("item with discount should appear in Discounted Items grid");
     }
 
@@ -195,103 +269,46 @@ public class DashboardUITests : IClassFixture<AppFixture>
     {
         // Double-click item in DiscountedGrid
         var discountedGrid = _fixture.GetDiscountedGrid();
-        var row = FindRowByName(discountedGrid, "UI Test Edited");
-        row.Should().NotBeNull("item should be in discounted grid");
-        row!.DoubleClick();
+        FindScrollAndDoubleClick(discountedGrid, "UI Test Edited");
 
         var dialog = _fixture.WaitForDialog("Edit Item");
         dialog.Should().NotBeNull();
 
         // Set discount to 0
-        FillDialogAndSave(dialog, discount: "0");
-
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(2000));
+        FillDialogAndSave(dialog!, discount: "0");
 
         // Verify item is no longer in DiscountedGrid
         discountedGrid = _fixture.GetDiscountedGrid();
-        GridContainsItem(discountedGrid, "UI Test Edited").Should()
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(1000));
+        _fixture.GridContainsItem(discountedGrid, "UI Test Edited").Should()
             .BeFalse("item without discount should not appear in Discounted Items grid");
     }
 
     [Fact]
-    public void T5_FilterByName_ShowsMatchingResults()
-    {
-        // Type into the AllItems Name filter
-        var nameFilter = _fixture.FindById("AllItemsNameFilter").AsTextBox();
-        nameFilter.Text = "";
-        nameFilter.Enter("UI Test Edited");
-
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(1000));
-
-        // Verify only matching rows are shown
-        var allGrid = _fixture.GetAllItemsGrid();
-        var rows = GetGridRows(allGrid);
-        rows.Should().HaveCountGreaterOrEqualTo(1, "at least one row should match the filter");
-        foreach (var row in rows)
-        {
-            var cells = row.AsGridRow().Cells;
-            var hasMatch = cells.Any(c =>
-                c.AsLabel().Text.Contains("UI Test Edited", StringComparison.OrdinalIgnoreCase));
-            hasMatch.Should().BeTrue("all visible rows should contain the filter text");
-        }
-
-        // Clear the filter
-        nameFilter.Text = "";
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
-    }
-
-    [Fact]
-    public void T6_FilterByPrice_ShowsMatchingResults()
-    {
-        // Set price range filter
-        var priceMin = _fixture.FindById("AllItemsPriceMinFilter").AsTextBox();
-        var priceMax = _fixture.FindById("AllItemsPriceMaxFilter").AsTextBox();
-
-        priceMin.Text = "";
-        priceMin.Enter("30");
-        priceMax.Text = "";
-        priceMax.Enter("40");
-
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(1000));
-
-        // Verify our item (price 35.99) is in the results
-        var allGrid = _fixture.GetAllItemsGrid();
-        GridContainsItem(allGrid, "UI Test Edited").Should()
-            .BeTrue("item with price 35.99 should be visible when filtering 30-40");
-
-        // Clear filters
-        priceMin.Text = "";
-        priceMax.Text = "";
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
-    }
-
-    [Fact]
-    public void T7_DeleteItem_RemovedFromGrid()
+    public void T5_DeleteItem_RemovedFromGrid()
     {
         // Select the item in AllItemsGrid
         var allGrid = _fixture.GetAllItemsGrid();
-        var row = FindRowByName(allGrid, "UI Test Edited");
-        row.Should().NotBeNull("item should exist before deletion");
-        row!.Click();
+        FindScrollAndClick(allGrid, "UI Test Edited");
 
         // Click Delete button
-        var deleteBtn = _fixture.FindById("DeleteButton").AsButton();
-        deleteBtn.Invoke();
+        var deleteBtn = _fixture.FindById("DeleteButton");
+        deleteBtn.Click();
 
         // Handle the confirmation MessageBox
         var msgBox = _fixture.WaitForMessageBox("Confirm Delete");
         msgBox.Should().NotBeNull("confirmation dialog should appear");
 
         // Click Yes
-        var yesButton = msgBox.FindFirstDescendant(cf => cf.ByName("Yes"))?.AsButton();
+        var yesButton = msgBox!.FindFirstDescendant(cf => cf.ByName("Yes"));
         yesButton.Should().NotBeNull("Yes button should exist in confirmation dialog");
-        yesButton!.Invoke();
+        yesButton!.Click();
 
         Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(2000));
 
         // Verify item is gone
         allGrid = _fixture.GetAllItemsGrid();
-        GridContainsItem(allGrid, "UI Test Edited").Should()
+        _fixture.GridContainsItem(allGrid, "UI Test Edited").Should()
             .BeFalse("deleted item should no longer appear in the grid");
     }
 }

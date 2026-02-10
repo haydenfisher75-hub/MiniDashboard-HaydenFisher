@@ -63,6 +63,7 @@
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   CanUserAddRows="False"
+                  EnableRowVirtualization="False"
                   Margin="8,0,8,8">
             <DataGrid.ColumnHeaderStyle>
                 <Style TargetType="DataGridColumnHeader">
@@ -257,6 +258,7 @@
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   CanUserAddRows="False"
+                  EnableRowVirtualization="False"
                   Margin="8,0,8,8">
             <DataGrid.ColumnHeaderStyle>
                 <Style TargetType="DataGridColumnHeader">
@@ -291,7 +293,7 @@
                         <DataTemplate>
                             <StackPanel>
                                 <TextBlock Text="Name" FontWeight="Bold" />
-                                <TextBox AutomationProperties.AutomationId="AllItemsNameFilter"
+                                <TextBox AutomationProperties.Name="AllItemsNameFilter"
                                          Text="{Binding DataContext.AllItemsFilter.Name,
                                     RelativeSource={RelativeSource AncestorType=DataGrid},
                                     UpdateSourceTrigger=PropertyChanged}" />
@@ -341,12 +343,12 @@
                             <StackPanel>
                                 <TextBlock Text="Price" FontWeight="Bold" />
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBox AutomationProperties.AutomationId="AllItemsPriceMinFilter"
+                                    <TextBox AutomationProperties.Name="AllItemsPriceMinFilter"
                                              Text="{Binding DataContext.AllItemsFilter.PriceMin,
                                         RelativeSource={RelativeSource AncestorType=DataGrid},
                                         UpdateSourceTrigger=PropertyChanged}" Width="38" />
                                     <TextBlock Text="–" Margin="2,0" VerticalAlignment="Center" />
-                                    <TextBox AutomationProperties.AutomationId="AllItemsPriceMaxFilter"
+                                    <TextBox AutomationProperties.Name="AllItemsPriceMaxFilter"
                                              Text="{Binding DataContext.AllItemsFilter.PriceMax,
                                         RelativeSource={RelativeSource AncestorType=DataGrid},
                                         UpdateSourceTrigger=PropertyChanged}" Width="38" />
