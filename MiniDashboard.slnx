@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="MiniDashboard.Api/MiniDashboard.Api.csproj" />
+  <Project Path="MiniDashboard.DTOs/MiniDashboard.DTOs.csproj" />
+  <Project Path="MiniDashboard.IntegrationTests/MiniDashboard.IntegrationTests.csproj" Id="9e6896c5-924c-4185-a5f8-ab2547ec05c0" />
+  <Project Path="MiniDashboard.Tests/MiniDashboard.Tests.csproj" Id="9bfb1863-2d85-4b15-8abb-3b03dac5fef1" />
+  <Project Path="MiniDashboard.App/MiniDashboard.App.csproj" />
+  <Project Path="MiniDashboard.UITest/MiniDashboard.UITest.csproj" />
+</Solution>

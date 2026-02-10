@@ -1,0 +1,448 @@
+<UserControl x:Class="MiniDashboard.App.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+             xmlns:behaviors="clr-namespace:MiniDashboard.App.Behaviors"
+             Focusable="True">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="2*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8">
+            <Button Command="{Binding AddItemCommand}"
+                    AutomationProperties.AutomationId="AddButton"
+                    Padding="8,4" Margin="0,0,8,0" FontSize="14"
+                    ToolTip="Add Item (Ctrl++)">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="+" FontWeight="Bold" FontSize="16" Margin="0,0,4,0" />
+                    <TextBlock Text="Add" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding DeleteSelectedCommand}"
+                    AutomationProperties.AutomationId="DeleteButton"
+                    Padding="8,4" Margin="0,0,8,0" FontSize="14"
+                    ToolTip="Delete Selected Items (Del)">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#x1F5D1;" FontSize="14" Margin="0,0,4,0"
+                               FontFamily="Segoe UI Emoji" />
+                    <TextBlock Text="Delete" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding DiscountedFilter.ClearCommand}"
+                    Padding="8,4" Margin="0,0,8,0" FontSize="14"
+                    ToolTip="Clear Discounted Filters">
+                <TextBlock Text="Clear Discounted Filters" />
+            </Button>
+            <Button Command="{Binding AllItemsFilter.ClearCommand}"
+                    Padding="8,4" FontSize="14"
+                    ToolTip="Clear All Items Filters">
+                <TextBlock Text="Clear All Items Filters" />
+            </Button>
+        </StackPanel>
+
+        <!-- Section header: Discounted Items -->
+        <TextBlock Grid.Row="1" Text="Discounted Items"
+                   FontSize="16" FontWeight="Bold" Margin="8" />
+
+        <!-- Top DataGrid: Discounted Items -->
+        <DataGrid Grid.Row="2"
+                  x:Name="DiscountedGrid"
+                  ItemsSource="{Binding DiscountedItemsView}"
+                  SelectionMode="Extended"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  Margin="8,0,8,8">
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
+            <i:Interaction.Behaviors>
+                <behaviors:SelectedItemsSyncBehavior
+                    SelectedItems="{Binding SelectedDiscountedItems}"
+                    PartnerGrid="{Binding ElementName=AllItemsGrid}"
+                    DoubleClickCommand="{Binding EditItemCommand}"
+                    DeleteCommand="{Binding DeleteSelectedCommand}" />
+                <behaviors:DataGridDragDropBehavior
+                    PartnerGrid="{Binding ElementName=AllItemsGrid}"
+                    DropCommand="{Binding DropOnDiscountedCommand}" />
+            </i:Interaction.Behaviors>
+            <DataGrid.Columns>
+                <DataGridTextColumn Binding="{Binding ProductCode}" Width="120">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Product Code" FontWeight="Bold" />
+                                <TextBox Text="{Binding DataContext.DiscountedFilter.ProductCode,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Name}" Width="*">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Name" FontWeight="Bold" />
+                                <TextBox Text="{Binding DataContext.DiscountedFilter.Name,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding TypeName}" Width="100">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Type" FontWeight="Bold" />
+                                <TextBox Text="{Binding DataContext.DiscountedFilter.TypeName,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding CategoryName}" Width="130">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Category" FontWeight="Bold" />
+                                <TextBox Text="{Binding DataContext.DiscountedFilter.CategoryName,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Price, StringFormat=C}" Width="100">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Price" FontWeight="Bold" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Text="{Binding DataContext.DiscountedFilter.PriceMin,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                    <TextBlock Text="–" Margin="2,0" VerticalAlignment="Center" />
+                                    <TextBox Text="{Binding DataContext.DiscountedFilter.PriceMax,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Discount, StringFormat={}{0:F0}%}" Width="100">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Discount %" FontWeight="Bold" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Text="{Binding DataContext.DiscountedFilter.DiscountMin,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                    <TextBlock Text="–" Margin="2,0" VerticalAlignment="Center" />
+                                    <TextBox Text="{Binding DataContext.DiscountedFilter.DiscountMax,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding DiscountDate, StringFormat=d}" Width="200">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Discount Date" FontWeight="Bold" />
+                                <DatePicker SelectedDate="{Binding DataContext.DiscountedFilter.DiscountDateFrom,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" FontSize="10" />
+                                <DatePicker SelectedDate="{Binding DataContext.DiscountedFilter.DiscountDateTo,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" FontSize="10" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Quantity}" Width="100">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Quantity" FontWeight="Bold" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Text="{Binding DataContext.DiscountedFilter.QuantityMin,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                    <TextBlock Text="–" Margin="2,0" VerticalAlignment="Center" />
+                                    <TextBox Text="{Binding DataContext.DiscountedFilter.QuantityMax,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding CreatedAt, StringFormat=g}" Width="200">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Created" FontWeight="Bold" />
+                                <DatePicker SelectedDate="{Binding DataContext.DiscountedFilter.CreatedFrom,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" FontSize="10" />
+                                <DatePicker SelectedDate="{Binding DataContext.DiscountedFilter.CreatedTo,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" FontSize="10" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding UpdatedAt, StringFormat=g}" Width="200">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Updated" FontWeight="Bold" />
+                                <DatePicker SelectedDate="{Binding DataContext.DiscountedFilter.UpdatedFrom,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" FontSize="10" />
+                                <DatePicker SelectedDate="{Binding DataContext.DiscountedFilter.UpdatedTo,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" FontSize="10" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Discounted loading overlay -->
+        <Border Grid.Row="2" Background="#80FFFFFF"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="120" Height="16" />
+                <TextBlock Text="Loading..." HorizontalAlignment="Center"
+                           Margin="0,8,0,0" FontSize="13" Foreground="Gray" />
+            </StackPanel>
+        </Border>
+
+        <!-- Discounted items count -->
+        <TextBlock Grid.Row="3" Text="{Binding DiscountedItemsCountText}"
+                   HorizontalAlignment="Right"
+                   Margin="8,0,8,4" FontSize="12" FontWeight="Bold" Foreground="SteelBlue" />
+
+        <!-- Section header: All Items -->
+        <TextBlock Grid.Row="4" Text="All Items"
+                   FontSize="16" FontWeight="Bold" Margin="8" />
+
+        <!-- Bottom DataGrid: All Items -->
+        <DataGrid Grid.Row="5"
+                  x:Name="AllItemsGrid"
+                  ItemsSource="{Binding AllItemsView}"
+                  SelectionMode="Extended"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  Margin="8,0,8,8">
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
+            <i:Interaction.Behaviors>
+                <behaviors:SelectedItemsSyncBehavior
+                    SelectedItems="{Binding SelectedAllItems}"
+                    PartnerGrid="{Binding ElementName=DiscountedGrid}"
+                    DoubleClickCommand="{Binding EditItemCommand}"
+                    DeleteCommand="{Binding DeleteSelectedCommand}" />
+                <behaviors:DataGridDragDropBehavior
+                    PartnerGrid="{Binding ElementName=DiscountedGrid}"
+                    DropCommand="{Binding DropOnAllItemsCommand}" />
+            </i:Interaction.Behaviors>
+            <DataGrid.Columns>
+                <DataGridTextColumn Binding="{Binding ProductCode}" Width="120">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Product Code" FontWeight="Bold" />
+                                <TextBox Text="{Binding DataContext.AllItemsFilter.ProductCode,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Name}" Width="*">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Name" FontWeight="Bold" />
+                                <TextBox AutomationProperties.AutomationId="AllItemsNameFilter"
+                                         Text="{Binding DataContext.AllItemsFilter.Name,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Description}" Width="*">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Description" FontWeight="Bold" />
+                                <TextBox Text="{Binding DataContext.AllItemsFilter.Description,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding TypeName}" Width="100">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Type" FontWeight="Bold" />
+                                <TextBox Text="{Binding DataContext.AllItemsFilter.TypeName,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding CategoryName}" Width="130">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Category" FontWeight="Bold" />
+                                <TextBox Text="{Binding DataContext.AllItemsFilter.CategoryName,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Price, StringFormat=C}" Width="100">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Price" FontWeight="Bold" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox AutomationProperties.AutomationId="AllItemsPriceMinFilter"
+                                             Text="{Binding DataContext.AllItemsFilter.PriceMin,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                    <TextBlock Text="–" Margin="2,0" VerticalAlignment="Center" />
+                                    <TextBox AutomationProperties.AutomationId="AllItemsPriceMaxFilter"
+                                             Text="{Binding DataContext.AllItemsFilter.PriceMax,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Quantity}" Width="100">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Quantity" FontWeight="Bold" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Text="{Binding DataContext.AllItemsFilter.QuantityMin,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                    <TextBlock Text="–" Margin="2,0" VerticalAlignment="Center" />
+                                    <TextBox Text="{Binding DataContext.AllItemsFilter.QuantityMax,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding Discount, StringFormat={}{0:F0}%}" Width="100">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Discount %" FontWeight="Bold" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Text="{Binding DataContext.AllItemsFilter.DiscountMin,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                    <TextBlock Text="–" Margin="2,0" VerticalAlignment="Center" />
+                                    <TextBox Text="{Binding DataContext.AllItemsFilter.DiscountMax,
+                                        RelativeSource={RelativeSource AncestorType=DataGrid},
+                                        UpdateSourceTrigger=PropertyChanged}" Width="38" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding CreatedAt, StringFormat=g}" Width="200">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Created" FontWeight="Bold" />
+                                <DatePicker SelectedDate="{Binding DataContext.AllItemsFilter.CreatedFrom,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" FontSize="10" />
+                                <DatePicker SelectedDate="{Binding DataContext.AllItemsFilter.CreatedTo,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" FontSize="10" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding UpdatedAt, StringFormat=g}" Width="200">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="Updated" FontWeight="Bold" />
+                                <DatePicker SelectedDate="{Binding DataContext.AllItemsFilter.UpdatedFrom,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" FontSize="10" />
+                                <DatePicker SelectedDate="{Binding DataContext.AllItemsFilter.UpdatedTo,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                    UpdateSourceTrigger=PropertyChanged}" FontSize="10" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
+                </DataGridTextColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- All items loading overlay -->
+        <Border Grid.Row="5" Background="#80FFFFFF"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="120" Height="16" />
+                <TextBlock Text="Loading..." HorizontalAlignment="Center"
+                           Margin="0,8,0,0" FontSize="13" Foreground="Gray" />
+            </StackPanel>
+        </Border>
+
+        <!-- All items count -->
+        <TextBlock Grid.Row="6" Text="{Binding AllItemsCountText}"
+                   Margin="8,0,8,4" FontSize="12" HorizontalAlignment="Right" FontWeight="Bold" Foreground="SteelBlue" />
+
+        <!-- Error / offline message in toolbar row -->
+        <TextBlock Grid.Row="0"
+                   Text="{Binding ErrorMessage}"
+                   Foreground="Red" FontWeight="Bold" FontSize="14"
+                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                   Margin="8" />
+    </Grid>
+</UserControl>
